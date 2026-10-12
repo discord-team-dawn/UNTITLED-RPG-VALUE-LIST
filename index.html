@@ -359,9 +359,38 @@
             font-weight: 800;
         }
 
+        /* 순수 강방 입력 박스 스타일 */
+        .gangbang-input-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(4, 6, 10, 0.6);
+            padding: 12px 16px;
+            border-radius: 14px;
+            border: 1px solid var(--border-neon);
+        }
+
+        .gangbang-input-box label {
+            font-size: 0.9rem;
+            font-weight: 800;
+            color: var(--neon-cyan);
+            white-space: nowrap;
+        }
+
+        .gangbang-input-box input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-main);
+            font-size: 1rem;
+            font-weight: 700;
+            width: 100%;
+            text-align: right;
+        }
+
         .selected-items {
-            min-height: 220px;
-            max-height: 380px;
+            min-height: 180px;
+            max-height: 320px;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
@@ -462,21 +491,21 @@
             background-color: var(--card-bg);
             border: 1px solid var(--border-subtle);
             border-radius: 24px;
-            padding: 40px 24px;
+            padding: 35px 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 20px;
+            gap: 16px;
             text-align: center;
             backdrop-filter: blur(16px);
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
         }
 
         .result-badge {
-            font-size: 2.2rem;
+            font-size: 2rem;
             font-weight: 900;
-            padding: 14px 32px;
+            padding: 14px 28px;
             border-radius: 16px;
             letter-spacing: 2px;
         }
@@ -489,6 +518,13 @@
             font-size: 1.05rem;
             color: var(--text-muted);
             font-weight: 700;
+        }
+
+        .notice-text {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 8px;
+            line-height: 1.4;
         }
 
         /* 모달창 */
@@ -637,8 +673,16 @@
         <!-- 거래 계산기 -->
         <section id="calculator-tab" class="tab-content">
             <div class="calc-grid">
+                <!-- 내 제안 -->
                 <div class="calc-panel">
                     <h3><i class="fa-solid fa-user" style="color: var(--neon-cyan);"></i> 내 제안 (Your Offer)</h3>
+                    
+                    <!-- 순수 강방 직접 입력 칸 -->
+                    <div class="gangbang-input-box">
+                        <label><i class="fa-solid fa-coins"></i> 추가 강방:</label>
+                        <input type="number" id="myGangbangInput" min="0" placeholder="0" oninput="calculateTrade()">
+                    </div>
+
                     <div class="selected-items" id="myOffers">
                         <p class="empty-notice">아이템을 선택하세요</p>
                     </div>
@@ -646,13 +690,23 @@
                     <button class="add-item-btn" onclick="openItemSelector('my')"><i class="fa-solid fa-plus"></i> 아이템 추가</button>
                 </div>
 
+                <!-- 거래 결과 판정 패널 -->
                 <div class="calc-result-panel">
                     <div class="result-badge" id="tradeResultBadge">적정 (FAIR)</div>
                     <div class="diff-text" id="tradeDiff">차액: 0 강방</div>
+                    <div class="notice-text">※ 시세가 범위 형태(예: 1~50)인 아이템은 <b>가장 높은 가격(최댓값)</b>을 기준으로 계산됩니다.</div>
                 </div>
 
+                <!-- 상대방 제안 -->
                 <div class="calc-panel">
                     <h3><i class="fa-solid fa-users" style="color: var(--neon-purple);"></i> 상대방 제안 (Their Offer)</h3>
+                    
+                    <!-- 순수 강방 직접 입력 칸 -->
+                    <div class="gangbang-input-box">
+                        <label><i class="fa-solid fa-coins"></i> 추가 강방:</label>
+                        <input type="number" id="theirGangbangInput" min="0" placeholder="0" oninput="calculateTrade()">
+                    </div>
+
                     <div class="selected-items" id="theirOffers">
                         <p class="empty-notice">아이템을 선택하세요</p>
                     </div>
@@ -715,7 +769,7 @@
                 const { data, error } = await supabaseClient
                     .from('items')
                     .select('*')
-                    .order('value', { ascending: false });
+                    .order('id', { ascending: false });
 
                 if (error) throw error;
                 itemsData = data || [];
@@ -738,7 +792,39 @@
                 .subscribe();
         }
 
-        // 카드 그리드 렌더링 (티어 제거, 개수 : 가격 표기)
+        // 가치 파싱 핵심 함수 (콜론 비율 파싱 + 범위형태일 경우 최댓값 추출)
+        function parseItemRatio(item) {
+            let qty = 1;
+            let val = 0;
+            let rawText = "";
+
+            const rawValue = item.value;
+
+            if (typeof rawValue === 'string' && rawValue.includes(':')) {
+                const parts = rawValue.split(':');
+                qty = parseFloat(parts[0].trim()) || 1;
+                
+                const valPart = parts[1].trim();
+                rawText = `${qty}개 : ${valPart} 강방`;
+
+                if (valPart.includes('~')) {
+                    const range = valPart.split('~');
+                    const minVal = parseFloat(range[0].trim()) || 0;
+                    const maxVal = parseFloat(range[1].trim()) || 0;
+                    val = Math.max(minVal, maxVal); // 가장 높은 가격(최댓값) 기준 적용
+                } else {
+                    val = parseFloat(valPart) || 0;
+                }
+            } else {
+                qty = item.quantity !== undefined ? parseFloat(item.quantity) : 1;
+                val = parseFloat(rawValue) || 0;
+                rawText = `${qty}개 : ${val.toLocaleString()} 강방`;
+            }
+
+            return { qty, val, rawText };
+        }
+
+        // 카드 그리드 렌더링
         function renderCards(data) {
             const grid = document.getElementById('cardsGrid');
             if (data.length === 0) {
@@ -747,14 +833,13 @@
             }
 
             grid.innerHTML = data.map(item => {
-                const baseQty = item.quantity || 1; 
-                const baseValue = item.value || 0;
+                const parsed = parseItemRatio(item);
 
                 return `
                     <div class="item-card">
                         <img src="${item.image_url || 'https://via.placeholder.com/96'}" alt="${item.name}" onerror="this.src='https://via.placeholder.com/96'">
                         <div class="name">${item.name}</div>
-                        <div class="value">${baseQty}개 : ${baseValue.toLocaleString()} 강방</div>
+                        <div class="value">${parsed.rawText}</div>
                         <div class="meta-row">
                             <span>${item.category || 'Item'}</span>
                             <span class="${getTrendClass(item.trend)}">${getTrendIcon(item.trend)} ${item.trend || '보통'}</span>
@@ -802,15 +887,14 @@
         function renderModalItems(list) {
             const container = document.getElementById('modalItemsList');
             container.innerHTML = list.map(item => {
-                const baseQty = item.quantity || 1;
-                const baseValue = item.value || 0;
+                const parsed = parseItemRatio(item);
                 return `
                     <div class="modal-item-row" onclick="addItemToCalc('${item.id}')">
                         <div style="display: flex; align-items: center; gap: 14px;">
                             <img src="${item.image_url || 'https://via.placeholder.com/36'}" width="36" height="36" style="border-radius: 8px;" onerror="this.src='https://via.placeholder.com/36'">
                             <span><b>${item.name}</b></span>
                         </div>
-                        <span style="color:var(--neon-cyan); font-weight: bold;">${baseQty}개 : ${baseValue.toLocaleString()} 강방</span>
+                        <span style="color:var(--neon-cyan); font-weight: bold;">${parsed.rawText}</span>
                     </div>
                 `;
             }).join('');
@@ -863,24 +947,20 @@
         function renderOffers(side) {
             const container = document.getElementById(side === 'my' ? 'myOffers' : 'theirOffers');
             const list = side === 'my' ? myOfferList : theirOfferList;
-            const totalEl = document.getElementById(side === 'my' ? 'myTotal' : 'theirTotal');
-            let total = 0;
 
             if (list.length === 0) {
                 container.innerHTML = `<p class="empty-notice">아이템을 선택하세요</p>`;
             } else {
                 container.innerHTML = list.map((entry, idx) => {
-                    const baseQty = entry.item.quantity || 1;
-                    const baseValue = entry.item.value || 0;
+                    const parsed = parseItemRatio(entry.item);
                     
-                    const calculatedSubTotal = Math.round((entry.quantity * baseValue) / baseQty);
-                    total += calculatedSubTotal;
+                    const calculatedSubTotal = Math.round((entry.quantity * parsed.val) / parsed.qty);
 
                     return `
                         <div class="selected-item-card">
                             <div class="item-info">
                                 <span><b>${entry.item.name}</b></span>
-                                <span style="font-size: 0.85rem; color: var(--neon-cyan);">${calculatedSubTotal.toLocaleString()} 강방 <span style="color:var(--text-muted)">(기준 ${baseQty}개:${baseValue}강방)</span></span>
+                                <span style="font-size: 0.85rem; color: var(--neon-cyan);">${calculatedSubTotal.toLocaleString()} 강방 <span style="color:var(--text-muted)">(기준 ${parsed.rawText})</span></span>
                             </div>
                             <div class="qty-controls">
                                 <button onclick="updateQuantity('${side}', ${idx}, -1)">-</button>
@@ -892,25 +972,32 @@
                     `;
                 }).join('');
             }
-            totalEl.textContent = total.toLocaleString();
+            calculateTrade();
         }
 
         function calculateTrade() {
             const calculateListTotal = (list) => {
                 return list.reduce((sum, entry) => {
-                    const baseQty = entry.item.quantity || 1;
-                    const baseValue = entry.item.value || 0;
-                    return sum + Math.round((entry.quantity * baseValue) / baseQty);
+                    const parsed = parseItemRatio(entry.item);
+                    return sum + Math.round((entry.quantity * parsed.val) / parsed.qty);
                 }, 0);
             };
 
-            const myTotal = calculateListTotal(myOfferList);
-            const theirTotal = calculateListTotal(theirOfferList);
+            // 순수 강방 입력값 반영
+            const myExtraGangbang = parseFloat(document.getElementById('myGangbangInput').value) || 0;
+            const theirExtraGangbang = parseFloat(document.getElementById('theirGangbangInput').value) || 0;
+
+            const myTotal = calculateListTotal(myOfferList) + myExtraGangbang;
+            const theirTotal = calculateListTotal(theirOfferList) + theirExtraGangbang;
+
+            document.getElementById('myTotal').textContent = myTotal.toLocaleString();
+            document.getElementById('theirTotal').textContent = theirTotal.toLocaleString();
+
             const badge = document.getElementById('tradeResultBadge');
             const diffText = document.getElementById('tradeDiff');
             const diff = theirTotal - myTotal;
 
-            if (myOfferList.length === 0 && theirOfferList.length === 0) {
+            if (myOfferList.length === 0 && theirOfferList.length === 0 && myExtraGangbang === 0 && theirExtraGangbang === 0) {
                 badge.textContent = '적정 (FAIR)';
                 badge.className = 'result-badge result-fair';
                 diffText.textContent = '차액: 0 강방';
