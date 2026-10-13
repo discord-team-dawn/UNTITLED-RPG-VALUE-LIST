@@ -1,16 +1,1298 @@
-<!DOCTYPE html>
+    <style><!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>제목 없는 알피지 시세 리스트</title>
-    <!-- Pretendard 폰트 및 FontAwesome 아이콘 -->
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Supabase JS SDK CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
+        :root {
+            --bg-dark: #04060a;
+            --card-bg: rgba(13, 19, 33, 0.75);
+            --border-neon: rgba(56, 189, 248, 0.25);
+            --border-subtle: rgba(255, 255, 255, 0.08);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --neon-cyan: #00f0ff;
+            --neon-purple: #a855f7;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* 배후 네온 그래디언트 오라 효과 */
+        .ambient-glow {
+            position: fixed;
+            width: 40vw;
+            height: 40vw;
+            border-radius: 50%;
+            filter: blur(120px);
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.15;
+            animation: floatGlow 12s infinite alternate ease-in-out;
+        }
+        .glow-1 { top: -10%; left: -10%; background: var(--neon-cyan); }
+        .glow-2 { bottom: -10%; right: -10%; background: var(--neon-purple); animation-delay: -6s; }
+
+        @keyframes floatGlow {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(10%, 10%) scale(1.1); }
+        }
+
+        /* 헤더 */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.2rem 3rem;
+            background: rgba(4, 6, 10, 0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-subtle);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 900;
+            font-size: 1.35rem;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 25px rgba(0, 240, 255, 0.4);
+        }
+
+        .logo i {
+            -webkit-text-fill-color: var(--neon-cyan);
+            font-size: 1.5rem;
+            filter: drop-shadow(0 0 8px var(--neon-cyan));
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 8px;
+            background: rgba(13, 19, 33, 0.9);
+            padding: 6px;
+            border-radius: 16px;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 12px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.95rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, var(--neon-cyan), #0284c7);
+            color: #04060a;
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.5);
+        }
+
+        .main-container {
+            max-width: 1280px;
+            margin: 3rem auto;
+            padding: 0 1.5rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        .tab-content {
+            display: none;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* 홈 화면 히어로 */
+        .home-hero {
+            text-align: center;
+            padding: 6.5rem 2rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border-neon);
+            border-radius: 28px;
+            backdrop-filter: blur(16px);
+            position: relative;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+        }
+
+        .home-hero h1 {
+            font-size: 3.5rem;
+            font-weight: 900;
+            margin-bottom: 1.2rem;
+            letter-spacing: -1px;
+            background: linear-gradient(to right, #ffffff, var(--neon-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .home-hero p {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            margin-bottom: 2.8rem;
+            max-width: 650px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.6;
+        }
+
+        .hero-btns {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .action-btn {
+            background: linear-gradient(135deg, var(--neon-cyan), #0284c7);
+            color: #04060a;
+            border: none;
+            padding: 16px 36px;
+            border-radius: 14px;
+            font-weight: 800;
+            font-size: 1.05rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.35);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 0 35px rgba(0, 240, 255, 0.6);
+        }
+
+        /* 검색 & 필터 바 */
+        .controls-bar {
+            display: flex;
+            gap: 18px;
+            margin-bottom: 2.5rem;
+        }
+
+        .search-box, .filter-box select {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            color: var(--text-main);
+            padding: 16px 22px;
+            font-size: 1.05rem;
+            backdrop-filter: blur(12px);
+            transition: all 0.3s ease;
+        }
+
+        .search-box:focus-within, .filter-box select:focus {
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex: 1;
+        }
+
+        .search-box input {
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            outline: none;
+            width: 100%;
+            font-size: 1.05rem;
+        }
+
+        .filter-box select {
+            outline: none;
+            cursor: pointer;
+        }
+
+        .db-status {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin: -1rem 0 1.25rem;
+            padding: 14px 18px;
+            border: 1px solid rgba(239, 68, 68, 0.45);
+            border-radius: 12px;
+            color: #fecaca;
+            background: rgba(127, 29, 29, 0.2);
+        }
+        .db-status[hidden] { display: none; }
+        .db-status button {
+            flex-shrink: 0;
+            padding: 8px 12px;
+            border: 1px solid rgba(248, 113, 113, 0.65);
+            border-radius: 8px;
+            color: var(--text-main);
+            background: rgba(239, 68, 68, 0.15);
+            cursor: pointer;
+            font-weight: 700;
+        }
+        .results-count {
+            color: var(--text-muted);
+            font-size: 0.92rem;
+            margin: -1.3rem 0 1.5rem;
+        }
+        @media(max-width: 760px) {
+            .header { padding: 1rem; flex-direction: column; gap: 1rem; }
+            .nav-tabs { width: 100%; justify-content: center; flex-wrap: wrap; }
+            .tab-btn { padding: 10px 12px; }
+            .main-container { margin: 1.5rem auto; padding: 0 1rem; }
+            .controls-bar { flex-direction: column; gap: 12px; margin-bottom: 2rem; }
+            .filter-box select { width: 100%; }
+            .home-hero { padding: 3.5rem 1.2rem; }
+            .home-hero h1 { font-size: 2.2rem; }
+            .hero-btns { flex-direction: column; align-items: stretch; }
+        }
+
+        /* 네온 게이밍 카드 그리드 */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 28px;
+        }
+
+        .item-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-subtle);
+            border-radius: 24px;
+            padding: 26px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 16px;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        
+            min-height: 397px;
+            box-sizing: border-box;
+        }
+
+        .item-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 35px rgba(0, 240, 255, 0.25);
+            background: rgba(18, 26, 46, 0.85);
+        }
+
+        .item-card img {
+            width: 96px;
+            height: 96px;
+            border-radius: 20px;
+            object-fit: cover;
+            background: rgba(4, 6, 10, 0.8);
+            border: 1px solid var(--border-subtle);
+            margin-bottom: 4px;
+        }
+
+        .item-card .name {
+            width: 100%;
+            min-height: 2.6em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            line-height: 1.3;
+            font-weight: 800;
+            overflow-wrap: anywhere;
+        }
+
+        .item-card .value {
+            width: 100%;
+            min-height: 2.8em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            line-height: 1.25;
+            font-weight: 900;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+            overflow-wrap: anywhere;
+            word-break: normal;
+        }
+
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border-subtle);
+            padding-top: 14px;
+            margin-top: 4px;
+        }
+
+        .trend-up { color: var(--success-color); font-weight: 800; }
+        .trend-down { color: var(--danger-color); font-weight: 800; }
+        .trend-stable { color: var(--text-muted); font-weight: 700; }
+
+        .loading-text {
+            grid-column: 1 / -1;
+            text-align: center;
+            color: var(--text-muted);
+            padding: 6rem;
+            font-size: 1.2rem;
+        }
+
+        /* 거래 계산기 */
+        .calc-grid {
+            display: grid;
+            grid-template-columns: 1fr 280px 1fr;
+            gap: 28px;
+            align-items: start;
+        }
+
+        @media(max-width: 1000px) {
+            .calc-grid { grid-template-columns: 1fr; }
+        }
+
+        .calc-panel {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-subtle);
+            border-radius: 24px;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+        }
+
+        .calc-panel h3 {
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 800;
+        }
+
+        /* 순수 강방 입력 박스 스타일 */
+        .gangbang-input-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(4, 6, 10, 0.6);
+            padding: 12px 16px;
+            border-radius: 14px;
+            border: 1px solid var(--border-neon);
+        }
+
+        .gangbang-input-box label {
+            font-size: 0.9rem;
+            font-weight: 800;
+            color: var(--neon-cyan);
+            white-space: nowrap;
+        }
+
+        .gangbang-input-box input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-main);
+            font-size: 1rem;
+            font-weight: 700;
+            width: 100%;
+            text-align: right;
+        }
+
+        .selected-items {
+            min-height: 180px;
+            max-height: 320px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .empty-notice {
+            color: var(--text-muted);
+            text-align: center;
+            margin: auto;
+            font-size: 1rem;
+        }
+
+        .selected-item-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(4, 6, 10, 0.7);
+            padding: 12px 16px;
+            border-radius: 14px;
+            border: 1px solid var(--border-subtle);
+            font-size: 0.95rem;
+            gap: 10px;
+        }
+
+        .selected-item-card .item-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+        }
+
+        .qty-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .qty-controls button {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: var(--text-main);
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .qty-controls button:hover {
+            background: var(--neon-cyan);
+            color: #04060a;
+        }
+
+        .selected-item-card .delete-btn {
+            background: none;
+            border: none;
+            color: var(--danger-color);
+            cursor: pointer;
+            font-size: 1rem;
+            transition: transform 0.2s;
+        }
+
+        .selected-item-card .delete-btn:hover {
+            transform: scale(1.3);
+        }
+
+        .total-value {
+            font-size: 1.4rem;
+            font-weight: 900;
+            text-align: right;
+            border-top: 1px solid var(--border-subtle);
+            padding-top: 16px;
+        }
+
+        .add-item-btn {
+            background-color: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            padding: 16px;
+            border-radius: 14px;
+            cursor: pointer;
+            font-weight: 800;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .add-item-btn:hover {
+            background-color: var(--neon-cyan);
+            color: #04060a;
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.5);
+        }
+
+        .calc-result-panel {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-subtle);
+            border-radius: 24px;
+            padding: 35px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            text-align: center;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+        }
+
+        .result-badge {
+            font-size: 2rem;
+            font-weight: 900;
+            padding: 14px 28px;
+            border-radius: 16px;
+            letter-spacing: 2px;
+        }
+
+        .result-win { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid var(--success-color); box-shadow: 0 0 30px rgba(16, 185, 129, 0.3); }
+        .result-lose { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid var(--danger-color); box-shadow: 0 0 30px rgba(239, 68, 68, 0.3); }
+        .result-fair { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid var(--warning-color); box-shadow: 0 0 30px rgba(245, 158, 11, 0.3); }
+
+        .diff-text {
+            font-size: 1.05rem;
+            color: var(--text-muted);
+            font-weight: 700;
+        }
+
+        .notice-text {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+
+        /* 모달창 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(4, 6, 10, 0.85);
+            backdrop-filter: blur(10px);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.open { display: flex; }
+
+        .modal-content {
+            background-color: #0b0f19;
+            border: 1px solid var(--border-neon);
+            border-radius: 28px;
+            width: 90%;
+            max-width: 560px;
+            max-height: 82vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 22px 30px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 2rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .close-btn:hover { color: var(--text-main); }
+
+        .modal-search { padding: 22px 30px 12px; }
+        .modal-search input {
+            width: 100%;
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border-subtle);
+            border-radius: 14px;
+            padding: 16px 20px;
+            color: var(--text-main);
+            outline: none;
+            font-size: 1.05rem;
+        }
+
+        .modal-search input:focus {
+            border-color: var(--neon-cyan);
+        }
+
+        .modal-items-list {
+            overflow-y: auto;
+            padding: 12px 30px 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .modal-item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: var(--bg-dark);
+            border-radius: 16px;
+            border: 1px solid var(--border-subtle);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .modal-item-row:hover {
+            border-color: var(--neon-cyan);
+            background: rgba(0, 240, 255, 0.05);
+            transform: translateX(6px);
+        }
+    
+
+
+        .qty-input {
+            width: 68px;
+            min-width: 58px;
+            padding: 7px 5px;
+            text-align: center;
+            color: var(--text-main);
+            background: var(--bg-dark);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            outline: none;
+            font: inherit;
+            font-size: 0.9rem;
+        }
+</style>
+    <!-- Discord Open Graph Embed -->
+    <meta property="og:title" content="제목 없는 알피지 시세 리스트">
+    <meta property="og:description" content="로블록스 제목 없는 알피지의 아이템 시세표와 거래 계산기">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://discord-team-dawn.github.io/UNTITLED-RPG-VALUE-LIST/">
+    <meta property="og:site_name" content="제목 없는 알피지 시세 리스트">
+    <meta property="og:image" content="https://discord-team-dawn.github.io/UNTITLED-RPG-VALUE-LIST/Logo.png">
+    <meta property="og:image:alt" content="제목 없는 알피지 시세 리스트">
+    <meta name="theme-color" content="#00F0FF">
+    <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+
+    <header class="header">
+        <div class="logo">
+            <i class="fa-solid fa-shield-halved"></i>
+            <span>제목 없는 알피지 시세 리스트</span>
+        </div>
+        <nav class="nav-tabs">
+            <button class="tab-btn active" data-tab="home"><i class="fa-solid fa-house"></i> 홈</button>
+            <button class="tab-btn" data-tab="values"><i class="fa-solid fa-chart-line"></i> 시세 보기</button>
+            <button class="tab-btn" data-tab="calculator"><i class="fa-solid fa-calculator"></i> 거래 계산기</button>
+        </nav>
+    </header>
+
+    <main class="main-container">
+        <!-- 홈 화면 -->
+        <section id="home-tab" class="tab-content active">
+            <div class="home-hero">
+                <h1>제목 없는 알피지 시세 리스트</h1>
+                <p>로블록스 제목없는 알피지의 시세 확인과 공정한 거래 계산기를 지금 바로 이용해보세요.</p>
+                <div class="hero-btns">
+                    <button class="action-btn" onclick="switchTab('values')"><i class="fa-solid fa-list"></i> 시세표 보러가기</button>
+                    <button class="action-btn" style="background: linear-gradient(135deg, var(--neon-purple), #7c3aed);" onclick="switchTab('calculator')"><i class="fa-solid fa-calculator"></i> 거래 계산기 쓰기</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 시세 보기 (카드 그리드) -->
+        <section id="values-tab" class="tab-content">
+            <div class="controls-bar">
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass" style="color: var(--text-muted);"></i>
+                    <input type="text" id="searchInput" placeholder="아이템 이름 검색...">
+                </div>
+                <div class="filter-box">
+                    <select id="categoryFilter">
+                        <option value="all">모든 카테고리</option>
+                        <option value="Weapon">무기 (Weapon)</option>
+                        <option value="Skin">스킨 (Skin)</option>
+                        <option value="Accessory">장신구 (Accessory)</option>
+                        <option value="Item">기타 (Item)</option>
+                    </select>
+                </div>
+                <div class="filter-box">
+                    <select id="trendFilter" aria-label="시세 변동 필터">
+                        <option value="all">모든 변동</option>
+                        <option value="Rising">상승</option>
+                        <option value="Falling">하락</option>
+                        <option value="Stable">보통</option>
+                    </select>
+                </div>
+                <div class="filter-box">
+                    <select id="sortFilter" aria-label="아이템 정렬">
+                        <option value="latest">최신 등록순</option>
+                        <option value="name-asc">이름순 (가나다)</option>
+                        <option value="price-desc">최고가 높은순</option>
+                        <option value="price-asc">최고가 낮은순</option>
+                    </select>
+                </div>
+            </div>
+            <div id="dbStatus" class="db-status" role="status" aria-live="polite" hidden></div>
+            <div id="resultsCount" class="results-count">아이템을 불러오는 중...</div>
+
+            <div class="cards-grid" id="cardsGrid">
+                <div class="loading-text">데이터를 불러오는 중입니다...</div>
+            </div>
+        </section>
+
+        <!-- 거래 계산기 -->
+        <section id="calculator-tab" class="tab-content">
+            <div class="calc-grid">
+                <!-- 내 제안 -->
+                <div class="calc-panel">
+                    <h3><i class="fa-solid fa-user" style="color: var(--neon-cyan);"></i> 내 제안 (Your Offer)</h3>
+                    
+                    <!-- 순수 강방 직접 입력 칸 -->
+                    <div class="gangbang-input-box">
+                        <label><i class="fa-solid fa-coins"></i> 추가 강방:</label>
+                        <input type="number" id="myGangbangInput" min="0" placeholder="0" oninput="calculateTrade()">
+                    </div>
+
+                    <div class="selected-items" id="myOffers">
+                        <p class="empty-notice">아이템을 선택하세요</p>
+                    </div>
+                    <div class="total-value">총 가치: <span id="myTotal">0</span> 강방</div>
+                    <button class="add-item-btn" onclick="openItemSelector('my')"><i class="fa-solid fa-plus"></i> 아이템 추가</button>
+                </div>
+
+                <!-- 거래 결과 판정 패널 -->
+                <div class="calc-result-panel">
+                    <div class="result-badge" id="tradeResultBadge">적정 (FAIR)</div>
+                    <div class="diff-text" id="tradeDiff">차액: 0 강방</div>
+                    <div class="notice-text">※ 시세가 범위 형태(예: 1~50)인 아이템은 <b>가장 높은 가격(최댓값)</b>을 기준으로 계산됩니다.</div>
+                </div>
+
+                <!-- 상대방 제안 -->
+                <div class="calc-panel">
+                    <h3><i class="fa-solid fa-users" style="color: var(--neon-purple);"></i> 상대방 제안 (Their Offer)</h3>
+                    
+                    <!-- 순수 강방 직접 입력 칸 -->
+                    <div class="gangbang-input-box">
+                        <label><i class="fa-solid fa-coins"></i> 추가 강방:</label>
+                        <input type="number" id="theirGangbangInput" min="0" placeholder="0" oninput="calculateTrade()">
+                    </div>
+
+                    <div class="selected-items" id="theirOffers">
+                        <p class="empty-notice">아이템을 선택하세요</p>
+                    </div>
+                    <div class="total-value">총 가치: <span id="theirTotal">0</span> 강방</div>
+                    <button class="add-item-btn" onclick="openItemSelector('their')"><i class="fa-solid fa-plus"></i> 아이템 추가</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 아이템 선택 모달 -->
+    <div class="modal" id="itemSelectorModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>아이템 선택</h3>
+                <button class="close-btn" onclick="closeItemSelector()">&times;</button>
+            </div>
+            <div class="modal-search">
+                <input type="text" id="modalSearchInput" placeholder="검색..." oninput="filterModalItems()">
+            </div>
+            <div class="modal-items-list" id="modalItemsList"></div>
+        </div>
+    </div>
+
+    <script>
+    // ==================== Supabase 연결 정보 ====================
+    const SUPABASE_URL = 'https://dpmcquiuhgcxxuqorbkq.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwbWNxdWl1aGdjeHh1cW9yYmtxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE3OTMxMDYsImV4cCI6MjEwNzM2OTEwNn0.Tl8R0QFfWAn095xRCGNvntMnlWvAB7SN_z2TVUADz0g';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let itemsData = [];
+    let myOfferList = [];
+    let theirOfferList = [];
+    let currentTargetSide = 'my';
+    let isLoadingItems = false;
+    let realtimeChannel = null;
+
+    const $ = (id) => document.getElementById(id);
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    function switchTab(tabName) {
+        tabBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabName));
+        tabContents.forEach(section => section.classList.toggle('active', section.id === `${tabName}-tab`));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    tabBtns.forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
+
+    function setDbStatus(message = '', showRetry = false) {
+        const status = $('dbStatus');
+        status.replaceChildren();
+        if (!message) {
+            status.hidden = true;
+            return;
+        }
+        status.hidden = false;
+        const text = document.createElement('span');
+        text.textContent = message;
+        status.appendChild(text);
+        if (showRetry) {
+            const retry = document.createElement('button');
+            retry.type = 'button';
+            retry.textContent = '다시 시도';
+            retry.addEventListener('click', fetchItems);
+            status.appendChild(retry);
+        }
+    }
+
+    function showGridMessage(message, withRetry = false) {
+        const grid = $('cardsGrid');
+        grid.replaceChildren();
+        const wrapper = document.createElement('div');
+        wrapper.className = 'loading-text';
+        const text = document.createElement('div');
+        text.textContent = message;
+        wrapper.appendChild(text);
+        if (withRetry) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = '다시 시도';
+            button.style.cssText = 'margin-top:16px;padding:10px 18px;border:1px solid var(--border-neon);border-radius:10px;background:rgba(0,240,255,.12);color:var(--text-main);cursor:pointer;font-weight:700';
+            button.addEventListener('click', fetchItems);
+            wrapper.appendChild(button);
+        }
+        grid.appendChild(wrapper);
+    }
+
+    async function fetchItems() {
+        if (isLoadingItems) return;
+        isLoadingItems = true;
+        if (itemsData.length === 0) {
+            showGridMessage('데이터를 불러오는 중입니다...');
+            $('resultsCount').textContent = '아이템을 불러오는 중...';
+        } else {
+            setDbStatus('최신 데이터를 다시 불러오는 중...');
+        }
+        try {
+            const { data, error } = await supabaseClient
+                .from('items')
+                .select('*')
+                .order('id', { ascending: false });
+            if (error) throw error;
+            itemsData = Array.isArray(data) ? data : [];
+            setDbStatus('');
+            filterCards();
+            renderOffers('my');
+            renderOffers('their');
+        } catch (err) {
+            console.error('데이터 로드 실패:', err);
+            const message = '데이터를 불러오지 못했습니다. 인터넷 연결 또는 Supabase의 items 테이블/RLS 설정을 확인해주세요.';
+            setDbStatus(message, true);
+            if (itemsData.length === 0) {
+                showGridMessage(message, true);
+                $('resultsCount').textContent = '데이터 로드 실패';
+            }
+        } finally {
+            isLoadingItems = false;
+        }
+    }
+
+    function setupRealtimeSync() {
+        if (realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
+        realtimeChannel = supabaseClient
+            .channel('public:items')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'items' }, () => {
+                fetchItems();
+            })
+            .subscribe((status, err) => {
+                if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+                    console.error('Realtime 연결 문제:', status, err || '');
+                    setDbStatus('실시간 업데이트 연결에 문제가 있습니다. 시세표는 다시 시도 버튼으로 새로고침할 수 있습니다.', true);
+                } else if (status === 'SUBSCRIBED') {
+                    if (itemsData.length > 0) setDbStatus('');
+                }
+            });
+    }
+
+    // DB에서 Armor로 저장된 기존 스킨 카테고리도 스킨으로 분류
+    function normalizeCategory(value) {
+        const category = String(value ?? '').trim().toLowerCase();
+        const aliases = {
+            weapon: 'Weapon', weapons: 'Weapon', 무기: 'Weapon',
+            skin: 'Skin', skins: 'Skin', armor: 'Skin', armour: 'Skin', 스킨: 'Skin', 방어구: 'Skin',
+            accessory: 'Accessory', accessories: 'Accessory', 장신구: 'Accessory',
+            item: 'Item', items: 'Item', other: 'Item', 기타: 'Item'
+        };
+        return aliases[category] || (value ? String(value).trim() : 'Item');
+    }
+
+    function getNumber(value) {
+        if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+        const cleaned = String(value ?? '').replace(/,/g, '').trim();
+        const match = cleaned.match(/-?\d+(?:\.\d+)?/);
+        return match ? Number(match[0]) : 0;
+    }
+
+    // 콜론 수량 비율 및 범위 가격을 처리하며, 범위는 항상 최댓값을 사용
+    function parseItemRatio(item) {
+        const rawValue = item?.value;
+        let qty = 1;
+        let val = 0;
+        let rawText = '';
+        const rawString = String(rawValue ?? '').trim();
+
+        if (rawString.includes(':')) {
+            const colonIndex = rawString.indexOf(':');
+            qty = getNumber(rawString.slice(0, colonIndex)) || 1;
+            const valPart = rawString.slice(colonIndex + 1).trim();
+            val = parseHighestValue(valPart);
+            rawText = `${qty}개 : ${valPart || '0'} 강방`;
+        } else {
+            qty = item?.quantity !== undefined && item?.quantity !== null ? (getNumber(item.quantity) || 1) : 1;
+            val = parseHighestValue(rawString);
+            rawText = `${qty}개 : ${rawString || '0'} 강방`;
+        }
+        if (!Number.isFinite(qty) || qty <= 0) qty = 1;
+        if (!Number.isFinite(val) || val < 0) val = 0;
+        return { qty, val, rawText };
+    }
+
+    function parseHighestValue(value) {
+        const text = String(value ?? '').replace(/,/g, '').trim();
+        if (text.includes('~')) {
+            const range = text.split('~');
+            const first = getNumber(range[0]);
+            const second = getNumber(range.slice(1).join('~'));
+            return Math.max(first, second); // 사용자가 원하는 최고가 기준 유지
+        }
+        return getNumber(text);
+    }
+
+    function getTrendClass(trend) {
+        const value = String(trend ?? '').toLowerCase();
+        if (['rising', '상승'].includes(value)) return 'trend-up';
+        if (['falling', '하락'].includes(value)) return 'trend-down';
+        return 'trend-stable';
+    }
+    function getTrendIcon(trend) {
+        const value = String(trend ?? '').toLowerCase();
+        if (['rising', '상승'].includes(value)) return '▲';
+        if (['falling', '하락'].includes(value)) return '▼';
+        return '-';
+    }
+    function normalizeTrend(trend) {
+        const value = String(trend ?? '').toLowerCase();
+        if (['rising', '상승'].includes(value)) return 'Rising';
+        if (['falling', '하락'].includes(value)) return 'Falling';
+        return 'Stable';
+    }
+    function safeImageUrl(value) {
+        try {
+            const url = new URL(String(value || 'https://via.placeholder.com/96'), window.location.href);
+            return ['http:', 'https:'].includes(url.protocol) ? url.href : 'https://via.placeholder.com/96';
+        } catch (_) {
+            return 'https://via.placeholder.com/96';
+        }
+    }
+
+    function makeItemImage(item, size = 96) {
+        const img = document.createElement('img');
+        img.src = safeImageUrl(item.image_url);
+        img.alt = String(item.name ?? '아이템 이미지');
+        img.width = size;
+        img.height = size;
+        img.loading = 'lazy';
+        img.addEventListener('error', () => { img.onerror = null; img.src = 'https://via.placeholder.com/' + size; });
+        if (size === 36) img.style.borderRadius = '8px';
+        return img;
+    }
+
+    function renderCards(data) {
+        const grid = $('cardsGrid');
+        grid.replaceChildren();
+        if (!data.length) {
+            showGridMessage(itemsData.length ? '검색 조건에 맞는 아이템이 없습니다.' : '등록된 아이템이 없습니다.');
+            return;
+        }
+        const fragment = document.createDocumentFragment();
+        data.forEach(item => {
+            const parsed = parseItemRatio(item);
+            const card = document.createElement('div');
+            card.className = 'item-card';
+            card.appendChild(makeItemImage(item, 96));
+            const name = document.createElement('div');
+            name.className = 'name';
+            name.textContent = String(item.name ?? '이름 없는 아이템');
+            card.appendChild(name);
+            const value = document.createElement('div');
+            value.className = 'value';
+            value.textContent = parsed.rawText;
+            card.appendChild(value);
+            const meta = document.createElement('div');
+            meta.className = 'meta-row';
+            const category = document.createElement('span');
+            category.textContent = normalizeCategory(item.category);
+            const trend = document.createElement('span');
+            trend.className = getTrendClass(item.trend);
+            trend.textContent = `${getTrendIcon(item.trend)} ${String(item.trend || '보통')}`;
+            meta.append(category, trend);
+            card.appendChild(meta);
+            fragment.appendChild(card);
+        });
+        grid.appendChild(fragment);
+    }
+
+    function filterCards() {
+        const keyword = $('searchInput').value.trim().toLocaleLowerCase();
+        const category = $('categoryFilter').value;
+        const trend = $('trendFilter').value;
+        const sort = $('sortFilter').value;
+        const filtered = itemsData.filter(item => {
+            const name = String(item.name ?? '').toLocaleLowerCase();
+            const categoryMatch = category === 'all' || normalizeCategory(item.category) === category;
+            const trendMatch = trend === 'all' || normalizeTrend(item.trend) === trend;
+            return name.includes(keyword) && categoryMatch && trendMatch;
+        });
+        filtered.sort((a, b) => {
+            if (sort === 'name-asc') return String(a.name ?? '').localeCompare(String(b.name ?? ''), 'ko');
+            if (sort === 'price-desc') return parseItemRatio(b).val / parseItemRatio(b).qty - parseItemRatio(a).val / parseItemRatio(a).qty;
+            if (sort === 'price-asc') return parseItemRatio(a).val / parseItemRatio(a).qty - parseItemRatio(b).val / parseItemRatio(b).qty;
+            return getNumber(b.id) - getNumber(a.id);
+        });
+        $('resultsCount').textContent = `검색 결과 ${filtered.length.toLocaleString()}개 / 전체 ${itemsData.length.toLocaleString()}개`;
+        renderCards(filtered);
+    }
+    $('searchInput').addEventListener('input', filterCards);
+    $('categoryFilter').addEventListener('change', filterCards);
+    $('trendFilter').addEventListener('change', filterCards);
+    $('sortFilter').addEventListener('change', filterCards);
+
+    // 거래 계산기 아이템 선택 모달
+    function openItemSelector(side) {
+        currentTargetSide = side;
+        $('modalSearchInput').value = '';
+        renderModalItems(itemsData);
+        $('itemSelectorModal').classList.add('open');
+        $('modalSearchInput').focus();
+    }
+    function closeItemSelector() { $('itemSelectorModal').classList.remove('open'); }
+
+    function renderModalItems(list) {
+        const container = $('modalItemsList');
+        container.replaceChildren();
+        if (!list.length) {
+            const empty = document.createElement('p');
+            empty.className = 'empty-notice';
+            empty.textContent = '검색 결과가 없습니다.';
+            container.appendChild(empty);
+            return;
+        }
+        const fragment = document.createDocumentFragment();
+        list.forEach(item => {
+            const parsed = parseItemRatio(item);
+            const row = document.createElement('div');
+            row.className = 'modal-item-row';
+            row.tabIndex = 0;
+            row.setAttribute('role', 'button');
+            const left = document.createElement('div');
+            left.style.cssText = 'display:flex;align-items:center;gap:14px;min-width:0';
+            left.appendChild(makeItemImage(item, 36));
+            const name = document.createElement('span');
+            const bold = document.createElement('b');
+            bold.textContent = String(item.name ?? '이름 없는 아이템');
+            name.appendChild(bold);
+            left.appendChild(name);
+            const value = document.createElement('span');
+            value.style.cssText = 'color:var(--neon-cyan);font-weight:bold';
+            value.textContent = parsed.rawText;
+            row.append(left, value);
+            const add = () => addItemToCalc(item.id);
+            row.addEventListener('click', add);
+            row.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); add(); } });
+            fragment.appendChild(row);
+        });
+        container.appendChild(fragment);
+    }
+    function filterModalItems() {
+        const keyword = $('modalSearchInput').value.trim().toLocaleLowerCase();
+        renderModalItems(itemsData.filter(item => String(item.name ?? '').toLocaleLowerCase().includes(keyword)));
+    }
+
+    function addItemToCalc(itemId) {
+        const item = itemsData.find(entry => String(entry.id) === String(itemId));
+        if (!item) return;
+        const list = currentTargetSide === 'my' ? myOfferList : theirOfferList;
+        const existing = list.find(entry => String(entry.item.id) === String(itemId));
+        if (existing) existing.quantity += 1;
+        else list.push({ item, quantity: 1 });
+        renderOffers(currentTargetSide);
+        closeItemSelector();
+        calculateTrade();
+    }
+    function updateQuantity(side, index, delta) {
+        const list = side === 'my' ? myOfferList : theirOfferList;
+        if (!list[index]) return;
+        list[index].quantity += delta;
+        if (list[index].quantity <= 0) list.splice(index, 1);
+        renderOffers(side);
+        calculateTrade();
+    }
+    function setItemQuantity(side, index, rawValue) {
+        const list = side === 'my' ? myOfferList : theirOfferList;
+        const entry = list[index];
+        if (!entry || rawValue === '') return;
+        const quantity = Math.floor(Number(rawValue));
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+            list.splice(index, 1);
+        } else {
+            entry.quantity = quantity;
+        }
+        renderOffers(side);
+        calculateTrade();
+    }
+
+    function removeItemFromCalc(side, index) {
+        const list = side === 'my' ? myOfferList : theirOfferList;
+        list.splice(index, 1);
+        renderOffers(side);
+        calculateTrade();
+    }
+    function renderOffers(side) {
+        const container = $(side === 'my' ? 'myOffers' : 'theirOffers');
+        const list = side === 'my' ? myOfferList : theirOfferList;
+        container.replaceChildren();
+        if (!list.length) {
+            const empty = document.createElement('p');
+            empty.className = 'empty-notice';
+            empty.textContent = '아이템을 선택하세요';
+            container.appendChild(empty);
+            calculateTrade();
+            return;
+        }
+        const fragment = document.createDocumentFragment();
+        list.forEach((entry, idx) => {
+            const parsed = parseItemRatio(entry.item);
+            const subtotal = Math.round((entry.quantity * parsed.val) / parsed.qty);
+            const card = document.createElement('div');
+            card.className = 'selected-item-card';
+            const info = document.createElement('div');
+            info.className = 'item-info';
+            const name = document.createElement('span');
+            const bold = document.createElement('b');
+            bold.textContent = String(entry.item.name ?? '이름 없는 아이템');
+            name.appendChild(bold);
+            const value = document.createElement('span');
+            value.style.cssText = 'font-size:.85rem;color:var(--neon-cyan)';
+            value.textContent = `${subtotal.toLocaleString()} 강방 (기준 ${parsed.rawText})`;
+            info.append(name, value);
+            const controls = document.createElement('div');
+            controls.className = 'qty-controls';
+            const minus = document.createElement('button');
+            minus.type = 'button'; minus.textContent = '-'; minus.setAttribute('aria-label', '수량 감소');
+            minus.addEventListener('click', () => updateQuantity(side, idx, -1));
+            const quantity = document.createElement('input');
+            quantity.className = 'qty-input';
+            quantity.type = 'number';
+            quantity.inputMode = 'numeric';
+            quantity.min = '1';
+            quantity.step = '1';
+            quantity.value = String(entry.quantity);
+            quantity.setAttribute('aria-label', `${entry.item.name} 수량`);
+            quantity.title = '수량을 직접 입력하세요';
+            quantity.addEventListener('change', () => setItemQuantity(side, idx, quantity.value));
+            quantity.addEventListener('keydown', event => {
+                if (event.key === 'Enter') quantity.blur();
+            });
+            const plus = document.createElement('button');
+            plus.type = 'button'; plus.textContent = '+'; plus.setAttribute('aria-label', '수량 증가');
+            plus.addEventListener('click', () => updateQuantity(side, idx, 1));
+            controls.append(minus, quantity, plus);
+            const remove = document.createElement('button');
+            remove.type = 'button'; remove.className = 'delete-btn'; remove.setAttribute('aria-label', '아이템 삭제');
+            const icon = document.createElement('i'); icon.className = 'fa-solid fa-trash';
+            remove.appendChild(icon);
+            remove.addEventListener('click', () => removeItemFromCalc(side, idx));
+            card.append(info, controls, remove);
+            fragment.appendChild(card);
+        });
+        container.appendChild(fragment);
+        calculateTrade();
+    }
+
+    function calculateTrade() {
+        const calculateListTotal = list => list.reduce((sum, entry) => {
+            const parsed = parseItemRatio(entry.item);
+            return sum + Math.round((entry.quantity * parsed.val) / parsed.qty);
+        }, 0);
+        const myExtra = Math.max(0, getNumber($('myGangbangInput').value));
+        const theirExtra = Math.max(0, getNumber($('theirGangbangInput').value));
+        const myTotal = calculateListTotal(myOfferList) + myExtra;
+        const theirTotal = calculateListTotal(theirOfferList) + theirExtra;
+        $('myTotal').textContent = myTotal.toLocaleString();
+        $('theirTotal').textContent = theirTotal.toLocaleString();
+        const badge = $('tradeResultBadge');
+        const diffText = $('tradeDiff');
+        const diff = theirTotal - myTotal;
+        if (myOfferList.length === 0 && theirOfferList.length === 0 && myExtra === 0 && theirExtra === 0) {
+            badge.textContent = '적정 (FAIR)'; badge.className = 'result-badge result-fair'; diffText.textContent = '차액: 0 강방'; return;
+        }
+        const threshold = (myTotal + theirTotal) * 0.05;
+        if (Math.abs(diff) <= threshold) {
+            badge.textContent = '적정 (FAIR)'; badge.className = 'result-badge result-fair';
+            diffText.textContent = `동등한 거래 (차액: ${Math.abs(diff).toLocaleString()} 강방)`;
+        } else if (diff > 0) {
+            badge.textContent = '이득 (WIN)'; badge.className = 'result-badge result-win';
+            diffText.textContent = `이득! (+${diff.toLocaleString()} 강방)`;
+        } else {
+            badge.textContent = '손해 (LOSE)'; badge.className = 'result-badge result-lose';
+            diffText.textContent = `손해! (${diff.toLocaleString()} 강방)`;
+        }
+    }
+
+    // 모달 바깥 클릭 및 Escape 키로 닫기
+    $('itemSelectorModal').addEventListener('click', event => {
+        if (event.target === $('itemSelectorModal')) closeItemSelector();
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') closeItemSelector();
+    });
+
+    fetchItems();
+    setupRealtimeSync();
+</script>
+</body>
+</html>
         :root {
             --bg-dark: #04060a;
             --card-bg: rgba(13, 19, 33, 0.75);
